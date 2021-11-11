@@ -1,107 +1,144 @@
-// create drawChart function to plot all the plots.
-var drawChart = function(x_data, y_data, hoverText, metadata) {   //chart take in four variables.
+var option = "";
+var dataSet ;
 
-    //Demographic Info Panel - take in metadata.
-    var metadata_panel = d3.select("#sample-metadata");    //select demographic_info panel
-    metadata_panel.html("");                               //clears contents inside demographic_info
-    Object.entries(metadata).forEach(([key, value]) => {   // for each key and value in metadata
-        metadata_panel.append("p").text(`${key}: ${value}`);       //append them to demographic_info as key:value in <p> format.
+
+function init() {
+
+  d3.json("samples.json").then(function(data){
+    dataSet = data;
+
+    console.log(dataSet);
+    
+    displayMetaData(940,dataSet);
+    displayHBarChart(940,dataSet);
+    displayBubbleChart(940,dataSet);
+
+    var optionMenu = d3.select("#selDataset");
+
+    data.names.forEach(function(name){
+      optionMenu.append("option").text(name);
     });
-    //Create Bar Chart - take in x_data,y_data, and hoverText.
-    var trace = {                                 
-        x: y_data
-            .slice(0,10)
-            .sort(function(a,b){
-                return a-b
-            }),
-        y: x_data
-            .map(d => `OTU ${d}`),
-        text: hoverText,
-        type: 'bar',
-        orientation: 'h'
+ })
+}
+
+function unpack(rows, index) {
+    return rows.map(function(row) {
+      return row[index];
+    });
+  }
+
+function optionChanged(value) {
+    option = value;
+    displayMetaData(option,dataSet);
+    displayHBarChart(option,dataSet);
+    displayBubbleChart(option,dataSet);
+}
+
+function displayMetaData(option,dataSet) {
+    
+    
+    var mtdata = dataSet.metadata.filter(row => row.id == option);
+    d3.select("#sample-metadata").html(displayObject(mtdata[0]));
+        
+}
+
+function displayObject(obj) {
+    var str = "";
+    Object.entries(obj).forEach(([key,value]) => {
+        str += `<br>${key}:${value}</br>`;
+        if(key=="wfreq"){
+            buildGauge(value);
+            console.log("gauge value is:" +value);
+        }
+        
+    });
+    return str;
+}
+
+function displayHBarChart(option,dataSet) {
+    
+    var barData = dataSet.samples.filter(sample => sample.id == option);
+    console.log(barData);
+    
+
+    
+
+    var y = barData.map(row =>row.otu_ids);  
+    var y1 =[];
+
+    
+   
+    for(i=0;i<y[0].length;i++){
+        y1.push(`OTU ${y[0][i]}`);
+    }
+
+    var x = barData.map(row =>(row.sample_values));
+    var text = barData.map(row =>row.otu_labels);
+    
+
+    var trace = {
+        x:x[0].slice(0,10),
+        y:y1.slice(0,10),
+        text:text[0].slice(0,10),
+        type:"bar",
+        orientation:"h",
+        
     };
 
     var data = [trace];
 
-    Plotly.newPlot('bar', data);
-    //Create Bubble Chart - take in x_data,y_data, and hoverText
-    var trace2 = {
-        x: x_data,
-        y: y_data,
-        text: hoverText,
-        mode: 'markers',
-        marker: {
-            size: y_data,
-            color: x_data
+    var layout = {
+        yaxis: {
+            autorange: "reversed" 
         }
+    }
+
+    
+
+    
+    Plotly.newPlot("bar",data,layout);
+}
+
+function displayBubbleChart(option,dataSet) {
+
+    var barData = dataSet.samples.filter(sample => sample.id == option);
+    console.log(barData); 
+
+    var x = barData.map(row =>row.otu_ids); 
+    var y = barData.map(row =>row.sample_values); 
+    var text = barData.map(row =>row.otu_labels);
+    var marker_size = barData.map(row =>row.sample_values);
+    var marker_color = barData.map(row =>row.otu_ids);
+    
+    console.log(x[0]);
+    console.log(y[0]);
+    console.log(text);
+    
+    var trace1 = {
+        x:x[0],
+        y:y[0],
+        text: text[0],
+        mode:"markers",
+        marker: {
+            color: marker_color[0],
+            size: marker_size[0]
+        }
+        
     };
 
-    var data2 = [trace2];
+    var data = [trace1];
 
-    Plotly.newPlot('bubble', data2);
-    
+    var layout = {
+        xaxis:{
+            title: "OTU ID"
+        }
 
+    };
 
-};
-// Create Function populateDropdown that append names to dropdown box.
-var populateDropdown = function(names) {     //function take in one variable "names".
+    Plotly.newPlot("bubble",data,layout);
 
-    var selectTag = d3.select("#selDataset");      //select id selDataset
-    var options = selectTag.selectAll('option').data(names);      //select all options and upload data in "names"
-    //enter and append each item from names with options id = name
-    options.enter()
-        .append('option')
-        .attr('value', function(d) {
-            return d;
-        })
-        .text(function(d) {
-            return d;
-        });
-
-};
-// Create Function optionChanged for event handler of dropdown box.
-var optionChanged = function(newValue) {                   //takes in newValue
-
-    d3.json("data/samples.json").then(function(data) {     //read json data
-
-    sample_new = data["samples"].filter(function(sample) {     //sample_new is created as placeholder
-
-        return sample.id == newValue;                       //newValue is now the id key in sample.
-
-    });
-    
-    metadata_new = data["metadata"].filter(function(metadata) {   //metadata_new is created as placeholder
-
-        return metadata.id == newValue;                    //newValue is now the id key in metadata.
-
-    });
-    
-    
-    x_data = sample_new[0]["otu_ids"];                    // x_data is updated
-    y_data = sample_new[0]["sample_values"];             // y_data is updated
-    hoverText = sample_new[0]["otu_labels"];             // hoverText is updated
-    
-    console.log(x_data);
-    console.log(y_data);
-    console.log(hoverText);
-    
-    drawChart(x_data, y_data, hoverText, metadata_new[0]);     //perform drawChart function with updated var.
-    });
-};
-//Initial Display before any event.
-d3.json("data/samples.json").then(function(data) {     //read json file
-
-    //Populate dropdown with names
-    populateDropdown(data["names"]);                  //populate dropdown
-
-    //Populate the page with the first value, four variables are defined.
-    x_data = data["samples"][0]["otu_ids"];
-    y_data = data["samples"][0]["sample_values"];
-    hoverText = data["samples"][0]["otu_labels"];
-    metadata = data["metadata"][0];
-
-    //Draw the chart on load
-    drawChart(x_data, y_data, hoverText, metadata);
+}
 
 
-});
+
+init();

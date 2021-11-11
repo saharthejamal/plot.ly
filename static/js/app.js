@@ -121,4 +121,4 @@ function getPlots(id) {
         });
     }
     
-    init();
+init();
